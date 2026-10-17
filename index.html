@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>متن روی عکس</title>
+<meta name="theme-color" content="#d9480f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap">
+<style>
+/* Layout: one column. Preview canvas on top, controls below, export at the end. */
+:root{
+  --bg:#f4f5f7; --surface:#ffffff; --fg:#14181f; --muted:#5b6472; --line:#d9dde4;
+  --accent:#d9480f; --accent-fg:#ffffff;
+  --font:'Vazirmatn',Tahoma,system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151b; --surface:#1b2029; --fg:#eef0f4; --muted:#9aa3b2; --line:#2e3542;
+  --accent:#ff7a3d; --accent-fg:#1a0d05; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151b; --surface:#1b2029; --fg:#eef0f4; --muted:#9aa3b2; --line:#2e3542;
+  --accent:#ff7a3d; --accent-fg:#1a0d05; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.7;
+  padding-block:max(20px,env(safe-area-inset-top,0px)) max(40px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.5rem;font-weight:800;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:0;font-size:.9rem}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+canvas{display:block;width:100%;height:auto;border-radius:6px;touch-action:none;cursor:grab;max-width:100%}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
+label,.lbl{font-size:.85rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
+textarea,input[type=range]{width:100%;font-family:var(--font)}
+textarea{font-size:1rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical;min-height:84px}
+button,.btn{font-family:var(--font);font-size:1rem;font-weight:600;border-radius:10px;border:1px solid var(--line);
+  background:var(--bg);color:var(--fg);padding:11px 16px;cursor:pointer;min-height:44px}
+button.primary,.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button:focus-visible,textarea:focus-visible,input:focus-visible+span,.btn:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.btn{display:block;text-align:center;position:relative}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.sw{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);padding:0;min-height:0}
+.sw[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.row>*{flex:1 1 140px;min-width:0}
+.chk{display:flex;align-items:center;gap:8px;font-size:.95rem;color:var(--fg);font-weight:400;margin:0}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+#result{display:flex;flex-direction:column;gap:10px}
+#result img{width:100%;height:auto;border-radius:8px;border:1px solid var(--line)}
+.hint{color:var(--muted);font-size:.85rem;margin:0}
+</style>
+
+</head>
+<body>
+<main>
+  <header>
+    <h1>متن روی عکس</h1>
+    <p class="sub">عکس انتخاب کنید، متن بنویسید و آن را با انگشت جابه‌جا کنید.</p>
+  </header>
+
+  <div class="stage"><canvas id="cv" width="1080" height="1080" aria-label="پیش‌نمایش عکس همراه با متن"></canvas></div>
+  <p class="hint" id="state">عکس نمونه. با دکمه زیر عکس خودتان را بگذارید.</p>
+
+  <section class="panel">
+    <label class="btn primary" for="pick">انتخاب عکس از گوشی<input id="pick" type="file" accept="image/*"></label>
+
+    <div>
+      <label for="txt">متن</label>
+      <textarea id="txt">سلام دنیا
+اولین برنامه من</textarea>
+    </div>
+
+    <div>
+      <label for="size">اندازه متن</label>
+      <input id="size" type="range" min="4" max="24" value="11">
+    </div>
+
+    <div>
+      <span class="lbl">رنگ متن</span>
+      <div class="swatches" id="sws"></div>
+    </div>
+
+    <div class="row">
+      <label class="chk" for="bold"><input id="bold" type="checkbox" checked> متن ضخیم</label>
+      <label class="chk" for="outline"><input id="outline" type="checkbox" checked> حاشیه دور متن</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <button class="primary" id="make">ساخت تصویر نهایی</button>
+    <div id="result" hidden>
+      <img id="out" alt="تصویر نهایی">
+      <a class="btn primary" id="dl" download="matn-roye-aks.jpg">ذخیره در گوشی</a>
+      <p class="hint">اگر ذخیره نشد، انگشت را روی تصویر نگه دارید و گزینه ذخیره را بزنید.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var $=function(id){return document.getElementById(id)};
+  var st={img:null,x:.5,y:.5,color:'#ffffff'};
+  var colors=['#ffffff','#111111','#ffd43b','#ff6b3d','#4dabf7'];
+
+  // رنگ‌ها
+  colors.forEach(function(c){
+    var b=document.createElement('button');
+    b.className='sw';b.style.background=c;b.setAttribute('aria-label','رنگ '+c);
+    b.setAttribute('aria-pressed',c===st.color);
+    b.onclick=function(){st.color=c;[].forEach.call($('sws').children,function(e){e.setAttribute('aria-pressed','false')});b.setAttribute('aria-pressed','true');draw()};
+    $('sws').appendChild(b);
+  });
+
+  function sample(w,h){
+    var g=ctx.createLinearGradient(0,0,w,h);
+    g.addColorStop(0,'#1f3a5f');g.addColorStop(.55,'#c2410c');g.addColorStop(1,'#f59f00');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='rgba(255,255,255,.12)';
+    ctx.beginPath();ctx.arc(w*.8,h*.2,w*.18,0,7);ctx.fill();
+    ctx.beginPath();ctx.arc(w*.15,h*.85,w*.25,0,7);ctx.fill();
+  }
+
+  function draw(){
+    var w=cv.width,h=cv.height;
+    ctx.clearRect(0,0,w,h);
+    if(st.img) ctx.drawImage(st.img,0,0,w,h); else sample(w,h);
+    var lines=$('txt').value.split('\n');
+    var fs=w*($('size').value/100);
+    ctx.font=($('bold').checked?'800 ':'400 ')+fs+'px Vazirmatn,Tahoma,sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.lineJoin='round';ctx.lineWidth=fs*.14;ctx.strokeStyle=st.color==='#111111'?'#ffffff':'#000000';
+    var lh=fs*1.35, y0=st.y*h-(lines.length-1)*lh/2;
+    lines.forEach(function(t,i){
+      var y=y0+i*lh,x=st.x*w;
+      if($('outline').checked) ctx.strokeText(t,x,y);
+      ctx.fillStyle=st.color;ctx.fillText(t,x,y);
+    });
+  }
+
+  // انتخاب عکس
+  $('pick').onchange=function(e){
+    var f=e.target.files&&e.target.files[0]; if(!f) return;
+    var url=URL.createObjectURL(f), im=new Image();
+    im.onload=function(){
+      var s=Math.min(1,1600/Math.max(im.width,im.height));
+      cv.width=Math.round(im.width*s);cv.height=Math.round(im.height*s);
+      st.img=im;st.x=.5;st.y=.5;
+      $('state').textContent='عکس شما بارگذاری شد. متن را روی آن بکشید.';
+      draw();
+    };
+    im.onerror=function(){$('state').textContent='این فایل باز نشد. عکس دیگری امتحان کنید.'};
+    im.src=url;
+  };
+
+  // کشیدن متن
+  var drag=false;
+  function move(e){
+    var r=cv.getBoundingClientRect();
+    st.x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    st.y=Math.min(1,Math.max(0,(e.clientY-r.top)/r.height));
+    draw();
+  }
+  cv.addEventListener('pointerdown',function(e){drag=true;cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing';move(e)});
+  cv.addEventListener('pointermove',function(e){if(drag)move(e)});
+  cv.addEventListener('pointerup',function(){drag=false;cv.style.cursor='grab'});
+  cv.addEventListener('pointercancel',function(){drag=false});
+
+  ['txt','size','bold','outline'].forEach(function(id){$(id).addEventListener('input',draw)});
+
+  // تصویر نهایی
+  $('make').onclick=function(){
+    try{
+      var u=cv.toDataURL('image/jpeg',.92);$('out').src=u;$('dl').href=u;
+      $('result').hidden=false;
+      $('out').scrollIntoView({behavior:'smooth',block:'nearest'});
+    }catch(err){$('state').textContent='ساخت تصویر ناموفق بود. دوباره امتحان کنید.'}
+  };
+
+  draw();
+  if(document.fonts&&document.fonts.load){
+    Promise.all([document.fonts.load('800 40px Vazirmatn'),document.fonts.load('400 40px Vazirmatn')]).then(draw).catch(function(){});
+  }
+})();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){})}
+</script>
+</body>
+</html>
